@@ -7,8 +7,8 @@ const auth = require('../middleware/auth');
 const router = express.Router();
 
 // Register User
-router.post('/register', async (req, res) => {
-  const { firstName, lastName, email, phoneNumber, password } = req.body;
+router.post('/signup', async (req, res) => {
+  const { fullName, email, phoneNumber, password } = req.body;
 
   try {
     let user = await User.findOne({ email });
@@ -20,15 +20,20 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     user = new User({
-      firstName,
-      lastName,
+      fullName,
       email,
       phoneNumber,
       password: hashedPassword,
     });
 
     await user.save();
-    const payload = { userId: user.id };
+    // Add isAdmin and other user data to the JWT payload
+    const payload = {
+      userId: user.id,
+      isAdmin: user.isAdmin,  // Include isAdmin in the payload
+      email: user.email,  // Optionally include the email or other user info
+      fuullName: user.fullName,  // Optionally include more details
+    };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     res.json({ token });
@@ -53,7 +58,14 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ msg: 'Invalid credentials' });
     }
 
-    const payload = { userId: user.id };
+    // Add isAdmin and other user data to the JWT payload
+    const payload = {
+      userId: user.id,
+      isAdmin: user.isAdmin,  // Include isAdmin in the payload
+      email: user.email,  // Optionally include the email or other user info
+      fuullName: user.fullName,  // Optionally include more details
+    };
+
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '30d' });
 
     res.json({ token });

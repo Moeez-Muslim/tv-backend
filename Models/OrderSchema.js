@@ -6,6 +6,8 @@ const orderSchema = new mongoose.Schema({
   totalCost: { type: Number, required: true },
   roomNumber: { type: String, required: true },
   orderDate: { type: Date, default: Date.now },
+  OTP: { type: Number, required: true },
+  timeRemaining: { type: Number, required: true }, 
 });
 
 module.exports = mongoose.model('Order', orderSchema);
