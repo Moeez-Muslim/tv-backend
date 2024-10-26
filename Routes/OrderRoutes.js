@@ -15,9 +15,22 @@ const generateOTP = () => {
 
 // Buy TV-Time (Create Order)
 router.post('/buy-tv-time', auth, async (req, res) => {
-  const { timeBought, roomNumber } = req.body;
+  const { timeBought, roomNumber, tvNumber } = req.body;
 
   try {
+    // Convert roomNumber (string) to an integer and store it in an array
+    const roomNumberInt = parseInt(roomNumber, 10);
+    
+    // Check if the conversion to number was successful
+    if (isNaN(roomNumberInt)) {
+      return res.status(400).json({ msg: 'Invalid room number. It must be a number.' });
+    }
+
+    // Validate tvNumber
+    if (!tvNumber || isNaN(tvNumber)) {
+      return res.status(400).json({ msg: 'Invalid TV number. It must be a number.' });
+    }
+
     const rate = await Rate.findOne(); // Get current TV-time rate
     if (!rate) {
       return res.status(400).json({ msg: 'Rate not found' });
@@ -28,14 +41,14 @@ router.post('/buy-tv-time', auth, async (req, res) => {
     // Generate a 6-digit OTP
     const OTP = generateOTP();
 
-    // Create a new order with the generated OTP
+    // Create a new order with the generated OTP and tvNumber
     const newOrder = new Order({
       userId: req.user,
       timeBought,
       totalCost,
-      roomNumber,
-      OTP,  // Save the OTP in the order
-      timeRemaining: timeBought  // Set timeRemaining equal to timeBought
+      roomNumber: [roomNumberInt],  // Save the room number as an array with a single element
+      tvNumber: [parseInt(tvNumber, 10)],  // Ensure tvNumber is stored as a array of number
+      OTP  // Save the OTP in the order
     });
 
     await newOrder.save();
@@ -43,16 +56,20 @@ router.post('/buy-tv-time', auth, async (req, res) => {
     // Fetch the user to get their email address
     const user = await User.findById(req.user);
 
-    // Prepare receipt content including OTP
+    // Format roomNumber and tvNumber as strings for display
+    const roomNumbersFormatted = roomNumberInt.toString();
+    const tvNumberFormatted = tvNumber.toString();
+
     const subject = 'Your TV-Time Order Receipt';
-    const text = `Dear ${user.firstName},\n\nThank you for your order.\n\nOrder Details:\n- Time Bought: ${timeBought} hours\n- Total Cost: $${totalCost}\n- Room Number: ${roomNumber}\n\nYour OTP for transferring TV-time is: ${OTP}\n\nRegards,\nTV Service Team`;
+    const text = `Dear ${user.fullName},\n\nThank you for your order.\n\nOrder Details:\n- Time Bought: ${timeBought} hours\n- Total Cost: $${totalCost}\n- Room Number: ${roomNumbersFormatted}\n- TV Number: ${tvNumberFormatted}\n\nYour OTP for transferring TV-time is: ${OTP}\n\nRegards,\nTV Service Team`;
     const html = `
-      <h1>Thank you for your order, ${user.firstName}!</h1>
+      <h1>Thank you for your order, ${user.fullName}!</h1>
       <p>Here are the details of your order:</p>
       <ul>
         <li><strong>Time Bought:</strong> ${timeBought} hours</li>
         <li><strong>Total Cost:</strong> $${totalCost}</li>
-        <li><strong>Room Number:</strong> ${roomNumber}</li>
+        <li><strong>Room Number:</strong> ${roomNumbersFormatted}</li>
+        <li><strong>TV Number:</strong> ${tvNumberFormatted}</li>
         <li><strong>Your OTP:</strong> ${OTP}</li>
       </ul>
       <p>You can use this OTP to transfer your TV-time to another room.</p>
@@ -70,10 +87,13 @@ router.post('/buy-tv-time', auth, async (req, res) => {
 });
 
 
+
 // Get All Orders for Logged-in User
 router.get('/my-orders', auth, async (req, res) => {
   try {
-    const orders = await Order.find({ userId: req.user });
+    const orders = await Order.find({ userId: req.user })
+      .sort({ orderDate: -1 });  // Sort by orderDate in descending order
+
     if (!orders.length) {
       return res.status(404).json({ msg: 'No orders found for this user' });
     }
@@ -85,9 +105,10 @@ router.get('/my-orders', auth, async (req, res) => {
   }
 });
 
+
 // Change Room using OTP
 router.post('/change-room', auth, async (req, res) => {
-  const { orderId, otp, newRoomNumber } = req.body;
+  const { orderId, otp, newRoomNumber, newTvNumber } = req.body;
 
   try {
     // Find the order by orderId
@@ -102,8 +123,9 @@ router.post('/change-room', auth, async (req, res) => {
       return res.status(400).json({ msg: 'OTP verification failed' });
     }
 
-    // OTP matches, update the room number
-    order.roomNumber = newRoomNumber;
+    // OTP matches, append the new room number to the roomNumber array
+    order.roomNumber.unshift(newRoomNumber);  // Append the new room number
+    order.tvNumber.unshift(newTvNumber);  // Append the new TV number (corrected field name)
 
     // Save the updated order
     await order.save();
@@ -115,19 +137,5 @@ router.post('/change-room', auth, async (req, res) => {
   }
 });
 
-// Get All Orders (Admin Only)
-router.get('/admin/orders', [auth, admin], async (req, res) => {
-  try {
-    const orders = await Order.find().populate('userId', 'firstName lastName email');  // Get all orders with user info
-    if (!orders.length) {
-      return res.status(404).json({ msg: 'No orders found' });
-    }
-
-    res.json(orders);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
-  }
-});
-
 module.exports = router;
+

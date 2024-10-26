@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../Models/UserSchema');
 const auth = require('../middleware/auth');
+const admin = require('../middleware/admin');  // Import the admin middleware
 
 const router = express.Router();
 
@@ -74,5 +75,6 @@ router.post('/login', async (req, res) => {
     res.status(500).send('Server error');
   }
 });
+
 
 module.exports = router;
