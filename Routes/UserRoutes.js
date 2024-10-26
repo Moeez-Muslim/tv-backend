@@ -76,5 +76,39 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Register or Login User with Google
+router.post('/google-signin', async (req, res) => {
+  const { fullName, email } = req.body;  // Only fullName and email from Google
+
+  try {
+    let user = await User.findOne({ email });
+    
+    if (!user) {
+      // If the user doesn’t exist, create a new user
+      user = new User({
+        fullName,
+        email,
+        password: null, // No password for Google-authenticated users
+      });
+      await user.save();
+    }
+    
+    // Create JWT payload
+    const payload = {
+      userId: user.id,
+      isAdmin: user.isAdmin,
+      email: user.email,
+      fullName: user.fullName,
+    };
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    res.json({ token });  // Send token to client for session management
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+
 
 module.exports = router;
