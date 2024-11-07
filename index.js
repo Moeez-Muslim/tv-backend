@@ -4,7 +4,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors'); // Import the cors middleware
 require('dotenv').config(); // For loading environment variables
 const http = require('http');
-const { initialize } = require('../utils/webSocket'); // Import WebSocket initializer
+const { initialize } = require('./utils/webSocket'); // Import WebSocket initializer
 
 
 const app = express();
