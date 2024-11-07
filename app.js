@@ -34,6 +34,11 @@ app.use('/api/orders', require('./Routes/OrderRoutes'));
 app.use('/api/rates', require('./Routes/RateRoutes'));
 app.use('/api/admin', require('./Routes/AdminRoutes'));
 
+// Base route to show the server status
+app.get('/', (req, res) => {
+  res.send('Server is running successfully');
+});
+
 // Start WebSocket server
 initialize(server); // Initialize WebSocket with the HTTP server
 
