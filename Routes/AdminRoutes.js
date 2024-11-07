@@ -5,6 +5,7 @@ const auth = require('../middleware/auth');
 const User = require('../Models/UserSchema')
 const Room = require('../Models/RoomSchema'); // Import the Room schema (previously TvSchema)
 const admin = require('../middleware/admin');  // Import the admin middleware
+const { broadcastMessage } = require('../utils/webSocket'); // Import WebSocket broadcast function
 
 const router = express.Router();
 
@@ -54,6 +55,9 @@ router.post('/change-room', [auth, admin], async (req, res) => {
         return res.status(404).json({ msg: 'Order not found' });
         }
 
+        const oldRoomNumber = order.roomNumber[0];
+        const oldTvNumber = order.tvNumber[0];
+
         // Append the new room number and TV number to the respective arrays
         order.roomNumber.unshift(newRoomNumber);
         order.tvNumber.unshift(newTvNumber);
@@ -65,6 +69,14 @@ router.post('/change-room', [auth, admin], async (req, res) => {
         const updatedOrder = await Order.findById(orderId).populate('userId', 'email');
 
         res.json({ msg: 'Room number and TV number updated successfully', order: updatedOrder });
+
+        broadcastMessage({
+          action: 'change-room',
+          oldRoomNumber,
+          oldTvNumber,
+          newRoomNumber,
+          newTvNumber
+        });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');
@@ -183,14 +195,26 @@ router.put("/toggle-tv", [auth, admin], async (req, res) => {
       return res.status(404).json({ msg: "Room or TV not found" });
     }
 
-    // Update the state of the specific TV
+    // Retrieve roomNumber and tvNumber for WebSocket message
+    const roomNumber = room.roomNumber;
     const tv = room.tvs.id(tvId);
-    tv.state = newState; // Toggle the state to the new value
+    const tvNumber = tv.tvNumber;
+
+    // Update the state of the specific TV
+    tv.state = newState;
 
     // Save the updated room document
     await room.save();
 
     res.json({ msg: "TV state updated successfully", newState: tv.state });
+
+    // Send WebSocket message with roomNumber and tvNumber
+    broadcastMessage({
+      action: 'toggle-tv',
+      roomNumber,     // Use roomNumber instead of roomId
+      tvNumber,       // Use tvNumber instead of tvId
+      newState
+    });
   } catch (err) {
     console.error("Error toggling TV state:", err.message);
     res.status(500).json({ msg: "Server error" });

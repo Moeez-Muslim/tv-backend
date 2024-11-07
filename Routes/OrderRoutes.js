@@ -4,7 +4,7 @@ const Rate = require('../Models/RateSchema');
 const auth = require('../middleware/auth');
 const User = require('../Models/UserSchema')
 const { sendEmail } = require('../utils/mailer'); // Import mailer utility
-const admin = require('../middleware/admin');  // Import the admin middleware
+const { broadcastMessage } = require('../utils/webSocket'); // Import WebSocket broadcast function
 
 const router = express.Router();
 
@@ -80,6 +80,14 @@ router.post('/buy-tv-time', auth, async (req, res) => {
     sendEmail(user.email, subject, text, html);
 
     res.json(newOrder);
+
+    // Broadcast WebSocket message to device
+    broadcastMessage({
+      action: 'buy-tv-time',
+      roomNumber: roomNumberInt,
+      tvNumber: parseInt(tvNumber, 10),
+      timeBought,
+    });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
@@ -123,6 +131,9 @@ router.post('/change-room', auth, async (req, res) => {
       return res.status(400).json({ msg: 'OTP verification failed' });
     }
 
+    const oldRoomNumber = order.roomNumber[0];
+    const oldTvNumber = order.tvNumber[0];
+
     // OTP matches, append the new room number to the roomNumber array
     order.roomNumber.unshift(newRoomNumber);  // Append the new room number
     order.tvNumber.unshift(newTvNumber);  // Append the new TV number (corrected field name)
@@ -131,6 +142,14 @@ router.post('/change-room', auth, async (req, res) => {
     await order.save();
 
     res.json({ msg: 'Room number updated successfully', order });
+
+    broadcastMessage({
+      action: 'change-room',
+      oldRoomNumber,
+      oldTvNumber,
+      newRoomNumber,
+      newTvNumber
+    });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');

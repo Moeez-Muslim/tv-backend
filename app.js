@@ -3,8 +3,13 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors'); // Import the cors middleware
 require('dotenv').config(); // For loading environment variables
+const http = require('http');
+const { initialize } = require('./utils/webSocket'); // Import WebSocket initializer
+
 
 const app = express();
+const server = http.createServer(app); // Create HTTP server instance
+
 
 // Middleware
 app.use(bodyParser.json());
@@ -29,6 +34,9 @@ app.use('/api/orders', require('./Routes/OrderRoutes'));
 app.use('/api/rates', require('./Routes/RateRoutes'));
 app.use('/api/admin', require('./Routes/AdminRoutes'));
 
+// Start WebSocket server
+initialize(server); // Initialize WebSocket with the HTTP server
+
 // Start the server
 const PORT = process.env.PORT;
-app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server started on port ${PORT}`));
