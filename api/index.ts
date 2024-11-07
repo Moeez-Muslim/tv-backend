@@ -4,7 +4,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors'); // Import the cors middleware
 require('dotenv').config(); // For loading environment variables
 const http = require('http');
-const { initialize } = require('../utils/webSocket'); // Import WebSocket initializer
+const { initialize } = require('./utils/webSocket'); // Import WebSocket initializer
 
 
 const app = express();
@@ -29,10 +29,10 @@ mongoose.connect(process.env.MONGO_URI, {
   .catch(err => console.log(err));
 
 // Define routes
-app.use('/api/users', require('./Routes/UserRoutes'));
-app.use('/api/orders', require('./Routes/OrderRoutes'));
-app.use('/api/rates', require('./Routes/RateRoutes'));
-app.use('/api/admin', require('./Routes/AdminRoutes'));
+app.use('/api/users', require('../Routes/UserRoutes'));
+app.use('/api/orders', require('../Routes/OrderRoutes'));
+app.use('/api/rates', require('../Routes/RateRoutes'));
+app.use('/api/admin', require('../Routes/AdminRoutes'));
 
 // Base route to show the server status
 app.get('/', (req, res) => {
