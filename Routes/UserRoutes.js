@@ -76,7 +76,7 @@ router.post('/login', async (req, res) => {
       fuullName: user.fullName,  // Optionally include more details
     };
 
-    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     res.json({ token });
   } catch (err) {
