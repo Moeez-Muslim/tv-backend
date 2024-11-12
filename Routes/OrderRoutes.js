@@ -141,7 +141,7 @@ router.post('/change-room', auth, async (req, res) => {
     // Save the updated order
     await order.save();
 
-    res.json({ msg: 'Room number updated successfully', order });
+    res.json({ msg: 'Room number and TV number updated successfully', order: updatedOrder });
 
     broadcastMessage({
       action: 'change-room',

@@ -47,17 +47,26 @@ router.post('/signup', async (req, res) => {
 // Login User
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
-
+  console.log(email, password);
   try {
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ msg: 'Invalid credentials' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    // If the password is null, the user registered with Google
+    if (user.password === null) {
+      return res.status(400).json({ msg: 'Please sign in using Google' });
+    }
+    
+    const isMatch = user.password && await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ msg: 'Invalid credentials' });
     }
+
+    console.log('user.password:', user.password);
+    console.log('Type of user.password:', typeof user.password);
+
 
     // Add isAdmin and other user data to the JWT payload
     const payload = {
