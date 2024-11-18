@@ -8,11 +8,10 @@ function initialize(server) {
   wss = new WebSocket.Server({ server });
 
   wss.on('connection', (ws, req) => {
-    const origin = req.headers.origin;
+    const proto = req.headers['x-forwarded-proto']; // Check the forwarded protocol
 
-    // Reject connections that do not come from an expected secure origin
-    if (!origin || !origin.startsWith('wss://')) {
-      console.log('New connection:', req.headers);
+    // Reject the connection if the original request was not over HTTPS
+    if (proto !== 'https') {
       ws.close(1008, 'Insecure connection not allowed');
       console.log('Rejected insecure connection');
       return;
