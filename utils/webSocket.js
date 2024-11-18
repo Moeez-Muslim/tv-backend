@@ -11,7 +11,7 @@ function initialize(server) {
     const origin = req.headers.origin;
 
     // Reject connections that do not come from an expected secure origin
-    if (!origin || !origin.startsWith('https://')) {
+    if (!origin || !origin.startsWith('wss://')) {
       ws.close(1008, 'Insecure connection not allowed');
       console.log('Rejected insecure connection');
       return;
