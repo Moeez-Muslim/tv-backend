@@ -7,7 +7,16 @@ let wss;
 function initialize(server) {
   wss = new WebSocket.Server({ server });
 
-  wss.on('connection', (ws) => {
+  wss.on('connection', (ws, req) => {
+    const origin = req.headers.origin;
+
+    // Reject connections that do not come from an expected secure origin
+    if (!origin || !origin.startsWith('https://')) {
+      ws.close(1008, 'Insecure connection not allowed');
+      console.log('Rejected insecure connection');
+      return;
+    }
+
     console.log('Device connected to WebSocket');
 
     ws.on('message', (message) => {
