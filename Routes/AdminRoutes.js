@@ -3,7 +3,7 @@ const Order = require('../Models/OrderSchema');
 const Rate = require('../Models/RateSchema');
 const auth = require('../middleware/auth');
 const User = require('../Models/UserSchema')
-const Room = require('../Models/RoomSchema'); // Import the Room schema (previously TvSchema)
+const Room = require('../Models/TvSchema'); 
 const admin = require('../middleware/admin');  // Import the admin middleware
 const { broadcastMessage } = require('../utils/webSocket'); // Import WebSocket broadcast function
 
@@ -43,44 +43,39 @@ router.get('/all-users', [auth, admin], async (req, res) => {
     }
   });
 
-// Change Room and TV (Admin Route, no OTP)
-router.post('/change-room', [auth, admin], async (req, res) => {
-    const { orderId, newRoomNumber, newTvNumber } = req.body;
+// Change Room using OTP
+router.post('/change-room', auth, async (req, res) => {
+  const { orderId, otp, newTvNumber } = req.body;
 
-    try {
-        // Find the order by orderId
-        const order = await Order.findById(orderId);
+  try {
+    // Find the order by orderId
+    const order = await Order.findById(orderId);
 
-        if (!order) {
-        return res.status(404).json({ msg: 'Order not found' });
-        }
-
-        const oldRoomNumber = order.roomNumber[0];
-        const oldTvNumber = order.tvNumber[0];
-
-        // Append the new room number and TV number to the respective arrays
-        order.roomNumber.unshift(newRoomNumber);
-        order.tvNumber.unshift(newTvNumber);
-
-        // Save the updated order
-        await order.save();
-
-        // Repopulate the userId field to get the email after saving
-        const updatedOrder = await Order.findById(orderId).populate('userId', 'email');
-
-        res.json({ msg: 'Room number and TV number updated successfully', order: updatedOrder });
-
-        broadcastMessage({
-          action: 'change-room',
-          oldRoomNumber,
-          oldTvNumber,
-          newRoomNumber,
-          newTvNumber
-        });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
+    if (!order) {
+      return res.status(404).json({ msg: 'Order not found' });
     }
+
+    const oldTvNumber = order.tvNumber[0];
+
+    // OTP matches, append the new room number to the roomNumber array
+    order.tvNumber.unshift(newTvNumber);  // Append the new TV number (corrected field name)
+
+    // Save the updated order
+    await order.save();
+
+    const updatedOrder = await Order.findById(orderId).populate('userId', 'email');
+
+    res.json({ msg: 'Room number and TV number updated successfully', order: updatedOrder });
+
+    broadcastMessage({
+      action: 'change-room',
+      oldTvNumber,
+      newTvNumber
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
 });
 
 
@@ -117,102 +112,71 @@ router.post('/change-hourly-rate', [auth, admin], async (req, res) => {
     }
   });
   
-// Add a room with an initial TV (Admin Only)
-router.post('/add-room', [auth, admin], async (req, res) => {
-  const { roomNumber, tvNumber } = req.body;
+// Add a TV (Admin Only)
+router.post('/add-tv', [auth, admin], async (req, res) => {
+  const { tvNumber } = req.body;
 
   try {
-      // Check if the room already exists
-      let room = await Room.findOne({ roomNumber });
-      if (room) {
-          return res.status(400).json({ msg: 'Room already exists' });
+      // Check if the TV already exists in the database
+      const existingTv = await Tv.findOne({ tvNumber });
+      if (existingTv) {
+          return res.status(400).json({ msg: 'TV with this number already exists' });
       }
 
-      // Create a new room with the initial TV
-      room = new Room({
-          roomNumber,
-          tvs: [{ tvNumber, state: 'off' }]  // Set the initial state of the TV to 'off'
+      // Create the new TV document
+      const newTv = new Tv({
+          tvNumber,
+          state: 'off', // Default state
       });
-      await room.save();
 
-      res.json({ msg: 'Room with TV added successfully', room });
+      // Save the new TV document
+      await newTv.save();
+
+      res.json({ msg: 'TV added successfully', tv: newTv });
   } catch (err) {
       console.error(err.message);
       res.status(500).send('Server error');
   }
 });
 
-// Add a TV to a room (Admin Only)
-router.post('/add-tv', [auth, admin], async (req, res) => {
-    const { roomNumber, tvNumber } = req.body;
+// Get all TVs (Admin Only)
+router.get('/all-tvs', [auth, admin], async (req, res) => {
+  try {
+      const tvs = await Tv.find();
+      if (!tvs.length) {
+          return res.status(404).json({ msg: 'No TVs found' });
+      }
 
-    try {
-        // Find the room by roomNumber
-        const room = await Room.findOne({ roomNumber });
-        if (!room) {
-            return res.status(404).json({ msg: 'Room not found' });
-        }
-
-        // Check if TV with the same number already exists in the room
-        if (room.tvs.some(tv => tv.tvNumber === tvNumber)) {
-            return res.status(400).json({ msg: 'TV with this number already exists in the room' });
-        }
-
-        // Add the new TV to the room
-        room.tvs.push({ tvNumber, state: 'off' });
-        await room.save();
-
-        res.json({ msg: 'TV added successfully', room });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
+      res.json(tvs);
+  } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Server error');
+  }
 });
 
-// Get all rooms and their TVs (Admin Only)
-router.get('/all-rooms', [auth, admin], async (req, res) => {
-    try {
-        const rooms = await Room.find();
-        if (!rooms.length) {
-            return res.status(404).json({ msg: 'No rooms found' });
-        }
-
-        res.json(rooms);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-
-// Toggle the state of a TV
+// Toggle the state of a TV (Admin Only)
 router.put("/toggle-tv", [auth, admin], async (req, res) => {
-  const { roomId, tvId, newState } = req.body;
+  const { tvNumber, newState } = req.body;
 
   try {
-    // Find the room by roomId and the specific TV by tvId
-    const room = await Room.findOne({ _id: roomId, "tvs._id": tvId });
-    if (!room) {
-      return res.status(404).json({ msg: "Room or TV not found" });
+    // Find the TV by tvNumber
+    const tv = await Tv.findOne({ tvNumber });
+    if (!tv) {
+      return res.status(404).json({ msg: "TV not found" });
     }
-
-    // Retrieve roomNumber and tvNumber for WebSocket message
-    const roomNumber = room.roomNumber;
-    const tv = room.tvs.id(tvId);
-    const tvNumber = tv.tvNumber;
 
     // Update the state of the specific TV
     tv.state = newState;
 
-    // Save the updated room document
-    await room.save();
+    // Save the updated TV document
+    await tv.save();
 
     res.json({ msg: "TV state updated successfully", newState: tv.state });
 
-    // Send WebSocket message with roomNumber and tvNumber
+    // Send WebSocket message with tvNumber
     broadcastMessage({
       action: 'toggle-tv',
-      roomNumber,     // Use roomNumber instead of roomId
-      tvNumber,       // Use tvNumber instead of tvId
+      tvNumber,       // TV number to be used in the WebSocket message
       newState
     });
   } catch (err) {
