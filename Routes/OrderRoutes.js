@@ -15,16 +15,11 @@ const generateOTP = () => {
 
 // Buy TV-Time (Create Order)
 router.post('/buy-tv-time', auth, async (req, res) => {
-  const { timeBought, roomNumber, tvNumber } = req.body;
+  const { timeBought, tvNumber } = req.body;
 
   try {
     // Convert roomNumber (string) to an integer and store it in an array
-    const roomNumberInt = parseInt(roomNumber, 10);
-    
-    // Check if the conversion to number was successful
-    if (isNaN(roomNumberInt)) {
-      return res.status(400).json({ msg: 'Invalid room number. It must be a number.' });
-    }
+    const tvNumberInt = parseInt(tvNumber, 10);
 
     // Validate tvNumber
     if (!tvNumber || isNaN(tvNumber)) {
