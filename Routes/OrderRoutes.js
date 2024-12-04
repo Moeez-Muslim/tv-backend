@@ -18,9 +18,6 @@ router.post('/buy-tv-time', auth, async (req, res) => {
   const { timeBought, tvNumber } = req.body;
 
   try {
-    // Convert roomNumber (string) to an integer and store it in an array
-    const tvNumberInt = parseInt(tvNumber, 10);
-
     // Validate tvNumber
     if (!tvNumber || isNaN(tvNumber)) {
       return res.status(400).json({ msg: 'Invalid TV number. It must be a number.' });
@@ -41,8 +38,7 @@ router.post('/buy-tv-time', auth, async (req, res) => {
       userId: req.user,
       timeBought,
       totalCost,
-      roomNumber: [roomNumberInt],  // Save the room number as an array with a single element
-      tvNumber: [parseInt(tvNumber, 10)],  // Ensure tvNumber is stored as a array of number
+      tvNumber: [tvNumber],  // Ensure tvNumber is stored as a array of number
       OTP  // Save the OTP in the order
     });
 
@@ -52,22 +48,20 @@ router.post('/buy-tv-time', auth, async (req, res) => {
     const user = await User.findById(req.user);
 
     // Format roomNumber and tvNumber as strings for display
-    const roomNumbersFormatted = roomNumberInt.toString();
-    const tvNumberFormatted = tvNumber.toString();
+    const tvNumberFormatted = tvNumber;
 
     const subject = 'Your TV-Time Order Receipt';
-    const text = `Dear ${user.fullName},\n\nThank you for your order.\n\nOrder Details:\n- Time Bought: ${timeBought} hours\n- Total Cost: $${totalCost}\n- Room Number: ${roomNumbersFormatted}\n- TV Number: ${tvNumberFormatted}\n\nYour OTP for transferring TV-time is: ${OTP}\n\nRegards,\nTV Service Team`;
+    const text = `Dear ${user.fullName},\n\nThank you for your order.\n\nOrder Details:\n- Time Bought: ${timeBought} hours\n- Total Cost: $${totalCost}\n- TV Number: ${tvNumberFormatted}\n\nYour OTP for transferring TV-time is: ${OTP}\n\nRegards,\nTV Service Team`;
     const html = `
       <h1>Thank you for your order, ${user.fullName}!</h1>
       <p>Here are the details of your order:</p>
       <ul>
         <li><strong>Time Bought:</strong> ${timeBought} hours</li>
         <li><strong>Total Cost:</strong> $${totalCost}</li>
-        <li><strong>Room Number:</strong> ${roomNumbersFormatted}</li>
         <li><strong>TV Number:</strong> ${tvNumberFormatted}</li>
         <li><strong>Your OTP:</strong> ${OTP}</li>
       </ul>
-      <p>You can use this OTP to transfer your TV-time to another room.</p>
+      <p>You can use this OTP to transfer your TV-time to another TV.</p>
       <p>Thank you for choosing our service!</p>
     `;
 
@@ -79,7 +73,6 @@ router.post('/buy-tv-time', auth, async (req, res) => {
     // Broadcast WebSocket message to device
     broadcastMessage({
       action: 'buy-tv-time',
-      roomNumber: roomNumberInt,
       tvNumber: parseInt(tvNumber, 10),
       timeBought,
     });
@@ -111,7 +104,7 @@ router.get('/my-orders', auth, async (req, res) => {
 
 // Change Room using OTP
 router.post('/change-room', auth, async (req, res) => {
-  const { orderId, otp, newRoomNumber, newTvNumber } = req.body;
+  const { orderId, otp, newTvNumber } = req.body;
 
   try {
     // Find the order by orderId
@@ -126,11 +119,9 @@ router.post('/change-room', auth, async (req, res) => {
       return res.status(400).json({ msg: 'OTP verification failed' });
     }
 
-    const oldRoomNumber = order.roomNumber[0];
     const oldTvNumber = order.tvNumber[0];
 
     // OTP matches, append the new room number to the roomNumber array
-    order.roomNumber.unshift(newRoomNumber);  // Append the new room number
     order.tvNumber.unshift(newTvNumber);  // Append the new TV number (corrected field name)
 
     // Save the updated order
@@ -142,9 +133,7 @@ router.post('/change-room', auth, async (req, res) => {
 
     broadcastMessage({
       action: 'change-room',
-      oldRoomNumber,
       oldTvNumber,
-      newRoomNumber,
       newTvNumber
     });
   } catch (err) {

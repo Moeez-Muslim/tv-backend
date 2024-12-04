@@ -1,28 +1,34 @@
-// Import the SendGrid library
-const sgMail = require('@sendgrid/mail');
+const nodemailer = require('nodemailer');
 
-// Set the API key from the environment variable
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+// Create a transporter object using Aruba's SMTP settings
+const transporter = nodemailer.createTransport({
+  host: 'smtps.aruba.it', // Aruba's SMTP server for custom domains
+  port: 465, // Port for SSL
+  secure: true, // Use SSL
+  auth: {
+    user: 'no-reply@attivatv.it', // Your email address
+    pass: process.env.EMAIL_PASS, // Your email password
+  },
+});
 
 // Function to send an email
 const sendEmail = (to, subject, text, html) => {
-  const msg = {
+  const mailOptions = {
+    from: 'no-reply@attivatv.it', // Sender's email (this is your domain's email)
     to: to, // Recipient's email
-    from: 'mail2moeezmuslim@gmail.com', // Your verified SendGrid sender email
     subject: subject, // Email subject
     text: text, // Plain text content
     html: html, // HTML content
   };
 
   // Send the email
-  sgMail
-    .send(msg)
-    .then(() => {
-      console.log('Email sent successfully');
-    })
-    .catch((error) => {
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
       console.error('Error sending email:', error);
-    });
+    } else {
+      console.log('Email sent: ' + info.response);
+    }
+  });
 };
 
 module.exports = { sendEmail };
