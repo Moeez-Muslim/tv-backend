@@ -3,7 +3,7 @@ const Order = require('../Models/OrderSchema');
 const Rate = require('../Models/RateSchema');
 const auth = require('../middleware/auth');
 const User = require('../Models/UserSchema')
-const Room = require('../Models/TvSchema'); 
+const Tv = require('../Models/TvSchema'); 
 const admin = require('../middleware/admin');  // Import the admin middleware
 const { broadcastMessage } = require('../utils/webSocket'); // Import WebSocket broadcast function
 
@@ -156,6 +156,8 @@ router.get('/all-tvs', [auth, admin], async (req, res) => {
 
 // Toggle the state of a TV (Admin Only)
 router.put("/toggle-tv", [auth, admin], async (req, res) => {
+  console.log("API called with:", req.body); // Add this to debug
+
   const { tvNumber, newState } = req.body;
 
   try {
