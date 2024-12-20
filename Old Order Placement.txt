@@ -1,0 +1,109 @@
+// Buy TV-Time (Create Order)
+router.post('/buy-tv-time', auth, async (req, res) => {
+  const { timeBought, tvNumber } = req.body;
+
+  try {
+    // Validate tvNumber
+    if (!tvNumber || isNaN(tvNumber)) {
+      return res.status(400).json({ msg: 'Invalid TV number. It must be a number.' });
+    }
+
+    const rate = await Rate.findOne(); // Get current TV-time rate
+    if (!rate) {
+      return res.status(400).json({ msg: 'Rate not found' });
+    }
+
+    const totalCost = timeBought * rate.hourlyRate;
+
+    // Generate a 6-digit OTP
+    const OTP = generateOTP();
+
+    // Create a new order with the generated OTP and tvNumber
+    const newOrder = new Order({
+      userId: req.user,
+      timeBought,
+      totalCost,
+      tvNumber: [tvNumber],  // Ensure tvNumber is stored as a array of number
+      OTP  // Save the OTP in the order
+    });
+
+    await newOrder.save();
+
+    // Fetch the user to get their email address
+    const user = await User.findById(req.user);
+
+    // Format roomNumber and tvNumber as strings for display
+    const tvNumberFormatted = tvNumber;
+
+    const subject = 'Your TV-Time Order Receipt';
+    const text = `Dear ${user.fullName},\n\nThank you for your order.\n\nOrder Details:\n- Time Bought: ${timeBought} hours\n- Total Cost: $${totalCost}\n- TV Number: ${tvNumberFormatted}\n\nYour OTP for transferring TV-time is: ${OTP}\n\nRegards,\nTV Service Team`;
+    const html = `
+      <h1>Thank you for your order, ${user.fullName}!</h1>
+      <p>Here are the details of your order:</p>
+      <ul>
+        <li><strong>Time Bought:</strong> ${timeBought} hours</li>
+        <li><strong>Total Cost:</strong> $${totalCost}</li>
+        <li><strong>TV Number:</strong> ${tvNumberFormatted}</li>
+        <li><strong>Your OTP:</strong> ${OTP}</li>
+      </ul>
+      <p>You can use this OTP to transfer your TV-time to another TV.</p>
+      <p>Thank you for choosing our service!</p>
+    `;
+
+    // Send the email receipt including OTP using SendGrid
+    sendEmail(user.email, subject, text, html);
+
+    res.json(newOrder);
+
+    // Broadcast WebSocket message to device
+    broadcastMessage({
+      action: 'buy-tv-time',
+      tvNumber: parseInt(tvNumber, 10),
+      timeBought,
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+
+
+const handleProceedToBuy = async () => {
+  setIsLoading(true); // Start loading state
+  setSuccessMessage("");
+  setErrorMessage("");
+
+  try {
+      const response = await axios.post(
+        `${process.env.REACT_APP_BASE_URL}/api/orders/buy-tv-time`,
+        {
+          timeBought: hours,
+          tvNumber: tvNumber,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "x-auth-token": jwtToken,
+          },
+        }
+      );
+
+      // Success handling
+      const newOrder = response.data;
+      setSuccessMessage(t("orderPlacedSuccess"));
+      setOrders((prevOrders) => [newOrder, ...prevOrders]); // Update the orders with the new order
+
+      // Reset form
+      setHours(0);
+      setTvNumber("");
+  } catch (error) {
+    console.error(error.response ? error.response.data : error.message);
+    setErrorMessage(
+        error.response && error.response.data ? error.response.data.msg : t("orderPlacedError")
+
+    );
+  } finally {
+    setIsLoading(false); // End loading state
+  }
+};
