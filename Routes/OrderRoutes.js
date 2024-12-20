@@ -142,5 +142,120 @@ router.post('/change-room', auth, async (req, res) => {
   }
 });
 
+const stripe = require('stripe')(process.env.STRIPE_SECRET_TEST_KEY);
+
+router.post('/create-checkout-session', async (req, res) => {
+  try {
+    const { timeBought, tvNumber } = req.body;
+
+    const session = await stripe.checkout.sessions.create({
+      line_items: [
+        {
+          price: 'price_1QY6FaD7SCij2oqTHbYOQ6e1', // Your Stripe Price ID
+          quantity: timeBought,
+        },
+      ],
+      mode: 'payment',
+      success_url: `${process.env.FRONTEND_URL}/?success=true`,
+      cancel_url: `${process.env.FRONTEND_URL}/?canceled=true`,
+      automatic_tax: { enabled: true },
+      metadata: {
+        timeBought,
+        tvNumber,
+        userId: req.user, // Pass the user ID
+      },
+    });
+
+    // Return the session URL in the response
+    res.status(200).json({ checkoutUrl: session.url });
+  } catch (error) {
+    console.error("Error creating Stripe Checkout session:", error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Stripe Webhook Endpoint
+router.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET; // Your webhook secret
+  const sig = req.headers["stripe-signature"];
+
+  let event;
+
+  try {
+    // Verify Stripe's signature
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err) {
+    console.error(`Webhook signature verification failed: ${err.message}`);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Handle different event types
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+
+    try {
+      // Fulfill the order
+      const { timeBought, tvNumber, userId } = session.metadata;
+
+      const rate = await Rate.findOne();
+      if (!rate) {
+        console.error("Rate not found");
+        return res.status(400).send("Rate not found");
+      }
+
+      const totalCost = timeBought * rate.hourlyRate;
+
+      // Generate a 6-digit OTP
+      const OTP = generateOTP();
+
+      // Create a new order
+      const newOrder = new Order({
+        userId,
+        timeBought,
+        totalCost,
+        tvNumber: [parseInt(tvNumber, 10)], // Store tvNumber as an array
+        OTP,
+      });
+
+      await newOrder.save();
+
+      // Fetch the user to send a receipt
+      const user = await User.findById(userId);
+
+      // Format and send email receipt
+      const subject = "Your TV-Time Order Receipt";
+      const text = `Dear ${user.fullName},\n\nThank you for your order.\n\nOrder Details:\n- Time Bought: ${timeBought} hours\n- Total Cost: $${totalCost}\n- TV Number: ${tvNumber}\n\nYour OTP for transferring TV-time is: ${OTP}\n\nRegards,\nTV Service Team`;
+      const html = `
+        <h1>Thank you for your order, ${user.fullName}!</h1>
+        <p>Here are the details of your order:</p>
+        <ul>
+          <li><strong>Time Bought:</strong> ${timeBought} hours</li>
+          <li><strong>Total Cost:</strong> $${totalCost}</li>
+          <li><strong>TV Number:</strong> ${tvNumber}</li>
+          <li><strong>Your OTP:</strong> ${OTP}</li>
+        </ul>
+        <p>You can use this OTP to transfer your TV-time to another TV.</p>
+        <p>Thank you for choosing our service!</p>
+      `;
+      sendEmail(user.email, subject, text, html);
+
+      // Broadcast WebSocket message
+      broadcastMessage({
+        action: "buy-tv-time",
+        tvNumber: parseInt(tvNumber, 10),
+        timeBought,
+      });
+
+      console.log(`Order fulfilled: ${newOrder._id}`);
+    } catch (error) {
+      console.error("Error fulfilling order:", error);
+      return res.status(500).send("Order fulfillment failed");
+    }
+  }
+
+  // Respond to Stripe to acknowledge the event
+  res.json({ received: true });
+});
+
 module.exports = router;
 
