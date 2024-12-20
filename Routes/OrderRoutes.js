@@ -1,4 +1,5 @@
 const express = require('express');
+const bodyParser = require('body-parser');
 const Order = require('../Models/OrderSchema');
 const Rate = require('../Models/RateSchema');
 const auth = require('../middleware/auth');
