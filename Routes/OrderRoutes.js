@@ -167,7 +167,7 @@ router.post('/create-checkout-session', async (req, res) => {
       },
     });
 
-    console.log("metadata sent: ", metadata);
+    console.log("metadata sent: ", session.metadata);
 
     // Return the session URL in the response
     res.status(200).json({ checkoutUrl: session.url });
