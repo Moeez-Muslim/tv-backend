@@ -167,6 +167,8 @@ router.post('/create-checkout-session', async (req, res) => {
       },
     });
 
+    console.log("metadata sent: ", metadata);
+
     // Return the session URL in the response
     res.status(200).json({ checkoutUrl: session.url });
   } catch (error) {
@@ -197,6 +199,7 @@ router.post("/webhook",   bodyParser.raw({ type: "application/json" }), async (r
     try {
       // Fulfill the order
       const { timeBought, tvNumber, userId } = session.metadata;
+      console.log("metadata rceived: ", session.metadata);
 
       const rate = await Rate.findOne();
       if (!rate) {
