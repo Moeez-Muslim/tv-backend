@@ -11,8 +11,14 @@ const app = express();
 const server = http.createServer(app); // Create HTTP server instance
 
 
-// Middleware
-app.use(bodyParser.json());
+// Apply bodyParser globally (except for webhooks)
+app.use((req, res, next) => {
+  if (req.originalUrl === "/api/orders/webhook") {
+    next(); // Skip JSON parsing for the webhook route
+  } else {
+    bodyParser.json()(req, res, next); // Parse JSON for all other routes
+  }
+});
 
 // CORS Policy: Allow requests from all origins (for development purposes)
 app.use(cors());

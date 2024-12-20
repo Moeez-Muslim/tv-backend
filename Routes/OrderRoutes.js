@@ -175,7 +175,7 @@ router.post('/create-checkout-session', async (req, res) => {
 });
 
 // Stripe Webhook Endpoint
-router.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+router.post("/webhook",   bodyParser.raw({ type: "application/json" }), async (req, res) => {
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET; // Your webhook secret
   const sig = req.headers["stripe-signature"];
 
