@@ -217,7 +217,7 @@ router.post("/webhook",   bodyParser.raw({ type: "application/json" }), async (r
         userId,
         timeBought,
         totalCost,
-        tvNumber: [parseInt(tvNumber, 10)], // Store tvNumber as an array
+        tvNumber: [tvNumber], // Store tvNumber as an array
         OTP,
       });
 
@@ -246,7 +246,7 @@ router.post("/webhook",   bodyParser.raw({ type: "application/json" }), async (r
       // Broadcast WebSocket message
       broadcastMessage({
         action: "buy-tv-time",
-        tvNumber: parseInt(tvNumber, 10),
+        tvNumber: tvNumber,
         timeBought,
       });
 
