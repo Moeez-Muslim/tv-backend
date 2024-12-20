@@ -145,7 +145,7 @@ router.post('/change-room', auth, async (req, res) => {
 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_TEST_KEY);
 
-router.post('/create-checkout-session', async (req, res) => {
+router.post('/create-checkout-session', auth, async (req, res) => {
   try {
     const { timeBought, tvNumber } = req.body;
 
@@ -161,9 +161,9 @@ router.post('/create-checkout-session', async (req, res) => {
       cancel_url: `${process.env.FRONTEND_URL}/?canceled=true`,
       automatic_tax: { enabled: true },
       metadata: {
-        timeBought,
-        tvNumber,
-        userId: req.user, // Pass the user ID
+        timeBought: timeBought,
+        tvNumber: tvNumber,
+        userId: req.user
       },
     });
 
