@@ -211,7 +211,8 @@ router.post('/create-checkout-session', auth, async (req, res) => {
       metadata: {
         timeBought: timeBought,
         tvNumber: tvNumber,
-        userId: req.user
+        userId: req.user,
+        totalCost: price * days
       },
     });
 
@@ -246,7 +247,7 @@ router.post("/webhook",   bodyParser.raw({ type: "application/json" }), async (r
 
     try {
       // Fulfill the order
-      const { timeBought, tvNumber, userId } = session.metadata;
+      const { timeBought, tvNumber, userId, totalCost } = session.metadata;
       console.log("metadata rceived: ", session.metadata);
 
       const rate = await Rate.findOne();
@@ -254,8 +255,6 @@ router.post("/webhook",   bodyParser.raw({ type: "application/json" }), async (r
         console.error("Rate not found");
         return res.status(400).send("Rate not found");
       }
-
-      const totalCost = timeBought * rate.hourlyRate;
 
       // Generate a 6-digit OTP
       const OTP = generateOTP();
