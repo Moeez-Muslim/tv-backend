@@ -143,16 +143,64 @@ router.post('/change-room', auth, async (req, res) => {
   }
 });
 
+// Calculate Price based on thresholds
+const calculatePrice = async (days) => {
+  const rate = await Rate.findOne();
+  if (!rate || !rate.thresholds || rate.thresholds.length === 0) {
+    throw new Error('Rate thresholds not set');
+  }
+
+  // Sort thresholds and find the applicable price
+  const sortedThresholds = rate.thresholds.sort((a, b) => a.days - b.days);
+  let price = sortedThresholds[sortedThresholds.length - 1].price; // Default to last threshold price
+
+  for (const threshold of sortedThresholds) {
+    if (days <= threshold.days) {
+      price = threshold.price;
+      break;
+    }
+  }
+  console.log("Price returned: ", price * days * 100)
+
+  return price * days * 100; // Return price in cents
+};
+
 const stripe = require('stripe')(process.env.STRIPE_SECRET_TEST_KEY);
 
 router.post('/create-checkout-session', auth, async (req, res) => {
   try {
     const { timeBought, tvNumber } = req.body;
 
+    days = timeBought;
+    const rate = await Rate.findOne();
+    if (!rate || !rate.thresholds || rate.thresholds.length === 0) {
+      throw new Error('Rate thresholds not set');
+    }
+
+    // Sort thresholds and find the applicable price
+    const sortedThresholds = rate.thresholds.sort((a, b) => a.days - b.days);
+    let price = sortedThresholds[sortedThresholds.length - 1].price; // Default to last threshold price
+
+    for (const threshold of sortedThresholds) {
+      if (days <= threshold.days) {
+        price = threshold.price;
+        break;
+      }
+    }
+
+    const unitAmount = price * 100;
+    console.log("Unit Amount: ", unitAmount);
+
     const session = await stripe.checkout.sessions.create({
       line_items: [
         {
-          price: 'price_1QY6FaD7SCij2oqTHbYOQ6e1', // Your Stripe Price ID
+          price_data: {
+            currency: 'eur', // Set your desired currency
+            product_data: {
+              name: `TV Subscription for TV Number: ${tvNumber}`, // Custom product name
+            },
+            unit_amount: unitAmount, // Custom price in cents
+          },
           quantity: timeBought,
         },
       ],

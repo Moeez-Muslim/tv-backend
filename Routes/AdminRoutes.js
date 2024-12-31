@@ -79,38 +79,76 @@ router.post('/change-room', auth, async (req, res) => {
 });
 
 
-// Change Hourly Rate (Admin Only)
-router.post('/change-hourly-rate', [auth, admin], async (req, res) => {
-    const { newHourlyRate } = req.body;
-  
-    try {
-      // Validate newHourlyRate
-      if (!newHourlyRate || newHourlyRate <= 0) {
-        return res.status(400).json({ msg: 'Invalid hourly rate' });
-      }
-  
-      // Try to find the existing rate document
-      let rate = await Rate.findOne();
-  
-      if (!rate) {
-        // If no rate document is found, create a new one
-        rate = new Rate({
-          hourlyRate: newHourlyRate
-        });
-        await rate.save();
-        return res.json({ msg: 'Hourly rate created and set successfully', rate });
-      }
-  
-      // Update the existing rate document
-      rate.hourlyRate = newHourlyRate;
-      await rate.save();
-  
-      res.json({ msg: 'Hourly rate updated successfully', rate });
-    } catch (error) {
-      console.error(error.message);
-      res.status(500).json({ msg: 'Server error' });
+// Change Thresholds (Admin Only)
+router.post('/change-thresholds', [auth, admin], async (req, res) => {
+  const { thresholds } = req.body;
+
+  try {
+    // Validate thresholds
+    if (!thresholds || !Array.isArray(thresholds) || thresholds.length === 0) {
+      return res.status(400).json({ msg: 'Invalid thresholds' });
     }
-  });
+
+    // Validate each threshold
+    for (const threshold of thresholds) {
+      if (!threshold.days || !threshold.price || threshold.days <= 0 || threshold.price <= 0) {
+        return res.status(400).json({ msg: 'Invalid threshold values' });
+      }
+    }
+
+    // Try to find the existing rate document
+    let rate = await Rate.findOne();
+
+    if (!rate) {
+      // If no rate document is found, create a new one
+      rate = new Rate({ thresholds });
+      await rate.save();
+      return res.json({ msg: 'Rate thresholds created successfully', rate });
+    }
+
+    // Update the existing rate document
+    rate.thresholds = thresholds;
+    await rate.save();
+
+    res.json({ msg: 'Rate thresholds updated successfully', rate });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// // Change Hourly Rate (Admin Only)
+// router.post('/change-hourly-rate', [auth, admin], async (req, res) => {
+//     const { newHourlyRate } = req.body;
+  
+//     try {
+//       // Validate newHourlyRate
+//       if (!newHourlyRate || newHourlyRate <= 0) {
+//         return res.status(400).json({ msg: 'Invalid hourly rate' });
+//       }
+  
+//       // Try to find the existing rate document
+//       let rate = await Rate.findOne();
+  
+//       if (!rate) {
+//         // If no rate document is found, create a new one
+//         rate = new Rate({
+//           hourlyRate: newHourlyRate
+//         });
+//         await rate.save();
+//         return res.json({ msg: 'Hourly rate created and set successfully', rate });
+//       }
+  
+//       // Update the existing rate document
+//       rate.hourlyRate = newHourlyRate;
+//       await rate.save();
+  
+//       res.json({ msg: 'Hourly rate updated successfully', rate });
+//     } catch (error) {
+//       console.error(error.message);
+//       res.status(500).json({ msg: 'Server error' });
+//     }
+//   });
   
 // Add a TV (Admin Only)
 router.post('/add-tv', [auth, admin], async (req, res) => {
