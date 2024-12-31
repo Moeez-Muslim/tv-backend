@@ -73,7 +73,7 @@ router.post('/login', async (req, res) => {
       userId: user.id,
       isAdmin: user.isAdmin,  // Include isAdmin in the payload
       email: user.email,  // Optionally include the email or other user info
-      fuullName: user.fullName,  // Optionally include more details
+      fullName: user.fullName,  // Optionally include more details
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
